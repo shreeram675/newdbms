@@ -190,3 +190,47 @@ exports.deactivateInstitution = async (req, res) => {
     }
 };
 
+
+exports.reactivateInstitution = async (req, res) => {
+    const { id } = req.params;
+
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        // Check if institution exists
+        const [institutions] = await connection.query('SELECT * FROM institutions WHERE id = ?', [id]);
+        if (institutions.length === 0) {
+            throw new Error('Institution not found');
+        }
+
+        // Mark institution as active
+        await connection.query('UPDATE institutions SET status = "active" WHERE id = ?', [id]);
+
+        // Restore all documents from this institution to active
+        await connection.query('UPDATE documents SET status = "active" WHERE institution_id = ?', [id]);
+
+        // Remove revocation records for documents from this institution
+        await connection.query(`
+            DELETE FROM revoked_documents 
+            WHERE document_id IN (
+                SELECT id FROM documents WHERE institution_id = ?
+            )
+        `, [id]);
+
+        // Get count of restored documents
+        const [documents] = await connection.query('SELECT COUNT(*) as count FROM documents WHERE institution_id = ?', [id]);
+
+        await connection.commit();
+        res.json({ 
+            message: 'Institution reactivated successfully',
+            documentsRestored: documents[0].count
+        });
+    } catch (error) {
+        await connection.rollback();
+        console.error(error);
+        res.status(500).json({ message: 'Server error: ' + error.message });
+    } finally {
+        connection.release();
+    }
+};

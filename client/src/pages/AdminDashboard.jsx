@@ -219,13 +219,21 @@ const AdminDashboard = () => {
                                                     {inst.status}
                                                 </span>
                                             </div>
-                                            {inst.status === 'active' && (
+                                            {inst.status === 'active' ? (
                                                 <button
                                                     onClick={() => handleDeactivateInstitution(inst.id, inst.name, inst.document_count)}
                                                     className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all"
                                                     title="Deactivate Institution"
                                                 >
                                                     <X className="w-4 h-4" />
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleReactivateInstitution(inst.id, inst.name, inst.document_count)}
+                                                    className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all"
+                                                    title="Reactivate Institution"
+                                                >
+                                                    <Check className="w-4 h-4" />
                                                 </button>
                                             )}
                                         </div>
