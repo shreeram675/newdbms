@@ -1,0 +1,172 @@
+const db = require('../config/db');
+const blockchain = require('../utils/blockchain');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+
+// Helper to calc hash
+const calculateFileHash = (filePath) => {
+    const fileBuffer = fs.readFileSync(filePath);
+    const hashSum = crypto.createHash('sha256');
+    hashSum.update(fileBuffer);
+    return '0x' + hashSum.digest('hex'); // 0x prefix for Solidity bytes32
+};
+
+exports.uploadDocument = async (req, res) => {
+    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+    const uploaderId = req.user.id; // From JWT
+    const { institution_id } = req.user; // From JWT (Updated middleware to include this?)
+
+    // Verify Active Institution
+    if (!institution_id) return res.status(403).json({ message: 'No institution linked' });
+
+    // Double check institution status?
+    // Middleware should ideally check, but let's do safe check
+    const [inst] = await db.query('SELECT status FROM institutions WHERE id = ?', [institution_id]);
+    if (inst.length === 0 || inst[0].status !== 'active') {
+        return res.status(403).json({ message: 'Institution inactive' });
+    }
+
+    const filePath = req.file.path;
+    const filename = req.file.originalname;
+
+    try {
+        // 1. Calculate Hash
+        const docHash = calculateFileHash(filePath);
+
+        // 2. Upload to Blockchain
+        const { txHash, blockNumber } = await blockchain.anchorHash(docHash);
+
+        // 3. Store in DB
+        await db.query(
+            'INSERT INTO documents (uploader_id, institution_id, filename, original_hash, tx_hash, block_number) VALUES (?, ?, ?, ?, ?, ?)',
+            [uploaderId, institution_id, filename, docHash, txHash, blockNumber]
+        );
+
+        // Cleanup: Delete file from server (we don't store documents)
+        fs.unlinkSync(filePath);
+
+        res.status(201).json({ message: 'Document anchored successfully', txHash, docHash });
+    } catch (error) {
+        console.error(error);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath); // Cleanup on error
+        res.status(500).json({ message: 'Upload/Anchor failed: ' + error.message });
+    }
+};
+
+exports.verifyDocument = async (req, res) => {
+    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+    const verifierId = req.user ? req.user.id : null; // Optional user if public
+    const filePath = req.file.path;
+
+    try {
+        // 1. Calculate Hash
+        const docHash = calculateFileHash(filePath);
+
+        // 2. Check Blockchain
+        const bcResult = await blockchain.verifyHash(docHash);
+
+        // 3. Check DB for extra details (filename, institution name)
+        const [dbDoc] = await db.query(
+            `SELECT d.*, i.name as institution_name 
+         FROM documents d 
+         JOIN institutions i ON d.institution_id = i.id 
+         WHERE d.original_hash = ?`,
+            [docHash]
+        );
+
+        let result = 'invalid';
+        let details = {};
+
+        if (bcResult.exists && dbDoc.length > 0) {
+            // Valid if blockchain says valid AND db hash matches
+            // Check revocation
+            if (bcResult.status === '0' && dbDoc[0].status === 'active') {
+                result = 'valid';
+                details = {
+                    institution: dbDoc[0].institution_name,
+                    timestamp: new Date(Number(bcResult.timestamp) * 1000).toISOString(),
+                    blockNumber: dbDoc[0].block_number,
+                    txHash: dbDoc[0].tx_hash
+                };
+            } else {
+                result = 'invalid'; // Revoked
+                details = { reason: bcResult.revocationReason || 'Revoked' };
+            }
+        }
+
+        // 4. Log Verification
+        // verifications: id, doc_id, verifier_id, uploaded_hash, stored_hash, result (valid/invalid), verifier_ip, timestamp
+        // doc_id is in dbDoc[0].id if found
+        const docId = dbDoc.length > 0 ? dbDoc[0].id : null;
+        const ip = req.ip;
+
+        await db.query(
+            'INSERT INTO verifications (doc_id, verifier_id, uploaded_hash, stored_hash, result, verifier_ip) VALUES (?, ?, ?, ?, ?, ?)',
+            [docId, verifierId, docHash, docId ? docHash : null, result, ip]
+        );
+
+        // Cleanup
+        fs.unlinkSync(filePath);
+
+        res.json({ result, ...details });
+
+    } catch (error) {
+        console.error(error);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        res.status(500).json({ message: 'Verification failed' });
+    }
+};
+
+exports.getUploaderStats = async (req, res) => {
+    const uploaderId = req.user.id;
+    try {
+        const [docs] = await db.query('SELECT COUNT(*) as count FROM documents WHERE uploader_id = ?', [uploaderId]);
+        const [verifications] = await db.query(`
+            SELECT v.result, COUNT(*) as count 
+            FROM verifications v
+            JOIN documents d ON v.doc_id = d.id
+            WHERE d.uploader_id = ?
+            GROUP BY v.result
+        `, [uploaderId]);
+
+        const [recentDocs] = await db.query('SELECT * FROM documents WHERE uploader_id = ? ORDER BY created_at DESC LIMIT 5', [uploaderId]);
+
+        // Full lists for modal views
+        const [allDocuments] = await db.query(`
+            SELECT d.id, d.filename, d.original_hash, d.tx_hash, d.block_number, 
+                   d.status, d.created_at
+            FROM documents d
+            WHERE d.uploader_id = ?
+            ORDER BY d.created_at DESC
+        `, [uploaderId]);
+
+        const [allVerifications] = await db.query(`
+            SELECT v.id, v.result, v.timestamp, d.filename, v.verifier_ip,
+                   u.name as verifier_name
+            FROM verifications v
+            JOIN documents d ON v.doc_id = d.id
+            LEFT JOIN users u ON v.verifier_id = u.id
+            WHERE d.uploader_id = ?
+            ORDER BY v.timestamp DESC
+        `, [uploaderId]);
+
+        // Separate valid and invalid verifications
+        const validVerifications = allVerifications.filter(v => v.result === 'valid');
+        const invalidVerifications = allVerifications.filter(v => v.result === 'invalid');
+
+        res.json({
+            totalDocuments: docs[0].count,
+            verifications: verifications,
+            recentDocuments: recentDocs,
+            // Detailed lists
+            allDocuments: allDocuments,
+            allVerifications: allVerifications,
+            validVerifications: validVerifications,
+            invalidVerifications: invalidVerifications
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
