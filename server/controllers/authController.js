@@ -31,7 +31,7 @@ exports.register = async (req, res) => {
             );
         }
 
-        const token = jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
+        const token = jwt.sign({ id: userId, role, name, email }, process.env.JWT_SECRET, {
             expiresIn: '1d',
         });
 
@@ -58,7 +58,13 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
-        const token = jwt.sign({ id: user.id, role: user.role, institution_id: user.institution_id }, process.env.JWT_SECRET, {
+        const token = jwt.sign({
+            id: user.id,
+            role: user.role,
+            institution_id: user.institution_id,
+            name: user.name,
+            email: user.email
+        }, process.env.JWT_SECRET, {
             expiresIn: '1d',
         });
 

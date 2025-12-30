@@ -1,6 +1,6 @@
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
-require('dotenv').config({ path: 'server/.env' });
+require('dotenv').config();
 
 async function run() {
     try {

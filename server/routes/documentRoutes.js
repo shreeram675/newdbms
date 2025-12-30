@@ -12,5 +12,6 @@ if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
 router.post('/upload', protect, authorize('uploader'), upload.single('document'), controller.uploadDocument);
 router.post('/verify', upload.single('document'), controller.verifyDocument);
 router.get('/stats', protect, authorize('uploader'), controller.getUploaderStats);
+router.post('/:id/revoke', protect, authorize('uploader'), controller.revokeDocument);
 
 module.exports = router;

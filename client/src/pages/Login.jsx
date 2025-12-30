@@ -25,7 +25,7 @@ const Login = () => {
                         className="w-full p-2 border rounded"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        autoComplete="off"
+                        autoComplete="username"
                         required
                     />
                     <input
@@ -34,7 +34,7 @@ const Login = () => {
                         className="w-full p-2 border rounded"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        autoComplete="new-password"
+                        autoComplete="current-password"
                         required
                     />
                     <button type="submit" className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">

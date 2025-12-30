@@ -106,8 +106,8 @@ const Verifier = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             className={`mt-10 overflow-hidden rounded-[2rem] border-2 ${result.result === 'valid'
-                                    ? 'bg-emerald-50 border-emerald-100 shadow-emerald-100'
-                                    : 'bg-red-50 border-red-100 shadow-red-100'
+                                ? 'bg-emerald-50 border-emerald-100 shadow-emerald-100'
+                                : 'bg-red-50 border-red-100 shadow-red-100'
                                 } shadow-xl`}
                         >
                             <div className={`p-6 flex items-center justify-center gap-3 text-2xl font-black uppercase tracking-tighter ${result.result === 'valid' ? 'text-emerald-700' : 'text-red-700'
@@ -140,10 +140,21 @@ const Verifier = () => {
                                     <div className="p-4 bg-white rounded-2xl shadow-sm">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Network Transaction</p>
                                         <div className="flex items-center justify-between">
-                                            <p className="font-mono text-[10px] text-indigo-600 truncate mr-4">{result.txHash}</p>
-                                            <a href={`https://etherscan.io/tx/${result.txHash}`} target="_blank" rel="noreferrer" className="p-2 hover:bg-indigo-50 rounded-xl transition-colors">
-                                                <ExternalLink className="w-4 h-4 text-indigo-600" />
-                                            </a>
+                                            {result.txHash === 'RECOVERED_FROM_BLOCKCHAIN' ? (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                                        Recovered
+                                                    </span>
+                                                    <span className="text-xs text-slate-500 italic">Verified via History</span>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <p className="font-mono text-[10px] text-indigo-600 truncate mr-4">{result.txHash}</p>
+                                                    <a href={`https://etherscan.io/tx/${result.txHash}`} target="_blank" rel="noreferrer" className="p-2 hover:bg-indigo-50 rounded-xl transition-colors">
+                                                        <ExternalLink className="w-4 h-4 text-indigo-600" />
+                                                    </a>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
