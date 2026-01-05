@@ -8,6 +8,7 @@ const authRoutes = require('./routes/authRoutes');
 const institutionRoutes = require('./routes/institutionRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const documentRoutes = require('./routes/documentRoutes');
+const certificateRoutes = require('./routes/certificateRoutes');
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/institutions', institutionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/certificates', certificateRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
@@ -35,8 +37,16 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = 5001;
 
-app.listen(PORT, () => {
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION:', err);
+});
+
+const server = app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+});
+
+server.on('error', (e) => {
+    console.error('Server Listen Error:', e);
 });

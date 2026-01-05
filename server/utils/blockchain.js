@@ -17,52 +17,70 @@ const initBlockchain = async () => {
 
     try {
         const rpcUrl = process.env.BLOCKCHAIN_RPC_URL || 'http://127.0.0.1:7545';
+        console.log('Web3 Version:', Web3.version);
+        console.log('Connecting to RPC:', rpcUrl);
         web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
 
-        // Load Account
-        // In Ganache (local), we might not explicitly need a private key if we use the unlocked accounts, 
-        // but for writing transactions via backend, we usually sign locally using a private key.
-        // If no private key in env, assuming Ganache first account for dev? 
-        // Better: require private key in .env for "Uploader" role simulation on backend?
-        // Wait, the backend acts as the gateway. Who pays for gas? The Institution or the Platform?
-        // Usually the platform (Admin backend wallet) or a relayer.
-        // Let's assume a SERVER_WALLET_PRIVATE_KEY in .env
-
-        const privateKey = process.env.SERVER_WALLET_PRIVATE_KEY;
-        // If testing locally with Ganache, we can grab an account from output.
-        // For now, let's look for accounts.
-
-        let accountToUse;
+        const privateKey = process.env.PRIVATE_KEY ? process.env.PRIVATE_KEY.trim() : null;
+        var accountToUse = null; // usage of var to ensure function scope
         if (privateKey) {
-            accountToUse = web3.eth.accounts.privateKeyToAccount(privateKey);
-            web3.eth.accounts.wallet.add(accountToUse);
+            console.log('Private Key Length:', privateKey.length);
+            try {
+                accountToUse = web3.eth.accounts.privateKeyToAccount(privateKey);
+                web3.eth.accounts.wallet.add(accountToUse);
+                console.log('Account loaded:', accountToUse.address);
+            } catch (accErr) {
+                console.error('Error loading account:', accErr);
+            }
         } else {
-            // Fallback for Ganache dev only
             const accounts = await web3.eth.getAccounts();
-            accountToUse = { address: accounts[0] }; // Use first account
+            console.log('Ganache Accounts found:', accounts.length);
+            accountToUse = { address: accounts[0] };
         }
 
         if (!fs.existsSync(ARTIFACT_PATH)) {
-            console.error('Blockchain Artifacts not found. Run "npx hardhat compile" in blockchain dir.');
+            console.error('Artifact not found');
             return null;
         }
 
+        if (!fs.existsSync(ARTIFACT_PATH)) {
+            throw new Error('Artifact not found at: ' + ARTIFACT_PATH);
+        }
+
         const artifact = JSON.parse(fs.readFileSync(ARTIFACT_PATH, 'utf8'));
-        const contractAddress = process.env.CONTRACT_ADDRESS;
+
+        let contractAddress = process.env.CONTRACT_ADDRESS ? process.env.CONTRACT_ADDRESS.trim() : null;
+        console.log('Account to use:', accountToUse ? accountToUse.address : 'undefined');
+        console.log('Contract Address from Env:', contractAddress);
 
         if (!contractAddress) {
-            console.error('CONTRACT_ADDRESS not set in .env');
-            return null;
+            throw new Error('CONTRACT_ADDRESS not set in .env');
+        }
+
+        // Address Normalization
+        try {
+            if (!web3.utils.isAddress(contractAddress)) {
+                console.warn('Initial isAddress check failed. Attempting normalization...');
+                contractAddress = web3.utils.toChecksumAddress(contractAddress);
+                console.log('Normalized Address:', contractAddress);
+            }
+        } catch (addrErr) {
+            console.error('Address normalization failure:', addrErr.message);
+            // Verify explicitly again
+            if (!web3.utils.isAddress(contractAddress)) {
+                throw new Error('Invalid Ethereum Address: ' + contractAddress);
+            }
         }
 
         contract = new web3.eth.Contract(artifact.abi, contractAddress);
         account = accountToUse;
-
-        console.log('Blockchain connected. Wallet:', account.address);
+        console.log('Blockchain Initialized Successfully. Wallet:', account.address);
         return { web3, contract, account };
     } catch (e) {
-        console.error('Blockchain init error:', e);
-        return null;
+        console.error('BLOCKCHAIN INIT FATAL ERROR:', e);
+        // Throwing here allows the caller to handle it (or crash logs to show it)
+        // instead of returning null and causing destructuring error.
+        throw e;
     }
 };
 
@@ -91,8 +109,14 @@ exports.anchorHash = async (docHash) => {
 };
 
 exports.verifyHash = async (docHash) => {
-    const { contract } = await initBlockchain();
-    if (!contract) throw new Error('Blockchain not initialized');
+    let blockchainData;
+    try {
+        blockchainData = await initBlockchain();
+    } catch (e) {
+        console.error('VerifyHash: Blockchain Init Failed:', e.message);
+        throw new Error('Blockchain Service Unavailable');
+    }
+    const { contract } = blockchainData;
 
     try {
         const result = await contract.methods.verifyDocument(docHash).call();

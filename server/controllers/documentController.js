@@ -147,15 +147,59 @@ exports.verifyDocument = async (req, res) => {
         const docId = dbDoc.length > 0 ? dbDoc[0].id : null;
         const ip = req.ip;
 
-        await db.query(
+        const [verificationResult] = await db.query(
             'INSERT INTO verifications (doc_id, verifier_id, uploaded_hash, stored_hash, result, verifier_ip) VALUES (?, ?, ?, ?, ?, ?)',
             [docId, verifierId, docHash, docId ? docHash : null, result, ip]
         );
+        const verificationId = verificationResult.insertId;
 
-        // Cleanup
+        // NEW: Generate cryptographic proof certificate for VALID results
+        let certificateData = null;
+        if (result === 'valid' && dbDoc.length > 0 && dbDoc[0].status === 'active') {
+            try {
+                const { generateProofObject, computeProofHash } = require('../utils/proofGenerator');
+
+                const proofObject = generateProofObject({
+                    documentHash: docHash,
+                    institutionName: dbDoc[0].institution_name,
+                    verifiedAt: new Date().toISOString(),
+                    blockchainTx: dbDoc[0].tx_hash,
+                    blockNumber: dbDoc[0].block_number,
+                    verifierType: verifierId ? 'authenticated' : 'public'
+                });
+
+                const proofHash = computeProofHash(proofObject);
+
+                // Persist proof to database
+                await db.query(
+                    'INSERT INTO verification_proofs (verification_id, proof_hash, proof_object) VALUES (?, ?, ?)',
+                    [verificationId, proofHash, JSON.stringify(proofObject)]
+                );
+
+                console.log(`✅ Verification certificate generated: ${proofHash}`);
+
+                certificateData = {
+                    proofHash,
+                    downloadPDF: `/api/certificates/download/${proofHash}`,
+                    downloadJSON: `/api/certificates/json/${proofHash}`,
+                    verifyOnline: `/verify-proof/${proofHash}`,
+                    previewUrl: `/api/certificates/preview/${proofHash}`
+                };
+            } catch (proofError) {
+                console.error('⚠️  Proof generation failed (verification still valid):', proofError);
+                // Don't fail the verification if proof generation fails
+            }
+        }
+
+        // Cleanup uploaded file
         fs.unlinkSync(filePath);
 
-        res.json({ result, ...details });
+        // Return response with certificate data if available
+        res.json({
+            result,
+            ...details,
+            ...(certificateData && { certificate: certificateData })
+        });
 
     } catch (error) {
         console.error(error);

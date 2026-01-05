@@ -126,7 +126,7 @@ const Verifier = () => {
                             </div>
 
                             {result.result === 'valid' && (
-                                <div className="p-8 bg-white/50 backdrop-blur-sm space-y-4 border-t border-emerald-100">
+                                <div className="p-8 bg-white/50 backdrop-blur-sm space-y-6 border-t border-emerald-100">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="p-4 bg-white rounded-2xl shadow-sm">
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Origin Institution</p>
@@ -157,6 +157,71 @@ const Verifier = () => {
                                             )}
                                         </div>
                                     </div>
+
+                                    {/* NEW: Cryptographic Verification Certificate Section */}
+                                    {result.certificate && (
+                                        <div className="mt-6 pt-6 border-t-2 border-emerald-200">
+                                            <div className="flex items-center gap-2 mb-4">
+                                                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                                                    Verification Certificate
+                                                </h3>
+                                            </div>
+
+                                            <div className="bg-gradient-to-br from-emerald-50 to-cyan-50 p-4 rounded-2xl border border-emerald-200">
+                                                <p className="text-xs text-slate-600 mb-3">
+                                                    Download your tamper-proof verification certificate
+                                                </p>
+
+                                                {/* Proof Hash Display */}
+                                                <div className="bg-white p-3 rounded-xl mb-4 border border-emerald-100">
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                                        Cryptographic Proof Hash
+                                                    </p>
+                                                    <p className="font-mono text-[10px] text-emerald-700 break-all">
+                                                        {result.certificate.proofHash}
+                                                    </p>
+                                                </div>
+
+                                                {/* Download Options */}
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <a
+                                                        href={`http://localhost:5001${result.certificate.downloadPDF}`}
+                                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all transform hover:scale-105"
+                                                        download
+                                                    >
+                                                        <FileText className="w-4 h-4" />
+                                                        <span className="text-sm">PDF</span>
+                                                    </a>
+
+                                                    <a
+                                                        href={`http://localhost:5001${result.certificate.downloadJSON}`}
+                                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all transform hover:scale-105"
+                                                        download
+                                                    >
+                                                        <FileText className="w-4 h-4" />
+                                                        <span className="text-sm">JSON</span>
+                                                    </a>
+                                                </div>
+
+                                                {/* Verify Online Button */}
+                                                <a
+                                                    href={result.certificate.verifyOnline}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="mt-3 flex items-center justify-center gap-2 px-4 py-3 bg-white hover:bg-gray-50 text-emerald-700 font-bold rounded-xl border-2 border-emerald-200 hover:border-emerald-300 transition-all"
+                                                >
+                                                    <ExternalLink className="w-4 h-4" />
+                                                    <span className="text-sm">Verify Certificate Online</span>
+                                                </a>
+
+                                                {/* Info Text */}
+                                                <p className="mt-3 text-[10px] text-slate-500 text-center italic">
+                                                    This certificate is independently verifiable and tamper-evident
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
