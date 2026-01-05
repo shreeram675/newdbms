@@ -35,6 +35,7 @@ exports.downloadPDF = async (req, res) => {
         // Send file for download
         const filename = `verification_certificate_${proofHash.substring(0, 8)}.pdf`;
 
+        res.setHeader('Content-Type', 'application/pdf');
         res.download(filepath, filename, (err) => {
             if (err) {
                 console.error('Download error:', err);

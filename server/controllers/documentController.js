@@ -84,9 +84,11 @@ exports.uploadDocument = async (req, res) => {
         }
 
         // 3. Store in DB with expiry date
+        const formattedExpiry = expiryDate ? new Date(expiryDate).toISOString().slice(0, 10) : null;
+        console.log('Inserting Document with Expiry:', formattedExpiry);
         await db.query(
             'INSERT INTO documents (uploader_id, institution_id, filename, original_hash, tx_hash, block_number, expiry_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [uploaderId, institution_id, filename, docHash, txHash, blockNumber, expiryDate || null]
+            [uploaderId, institution_id, filename, docHash, txHash, blockNumber, formattedExpiry]
         );
 
         // Cleanup: Delete file from server (we don't store documents)
@@ -133,7 +135,9 @@ exports.verifyDocument = async (req, res) => {
                     institution: dbDoc[0].institution_name,
                     timestamp: new Date(Number(bcResult.timestamp) * 1000).toISOString(),
                     blockNumber: dbDoc[0].block_number,
-                    txHash: dbDoc[0].tx_hash
+                    txHash: dbDoc[0].tx_hash,
+                    expiryDate: dbDoc[0].expiry_date,
+                    isExpired: dbDoc[0].expiry_date && new Date() > new Date(dbDoc[0].expiry_date)
                 };
             } else {
                 result = 'invalid'; // Revoked
@@ -160,12 +164,13 @@ exports.verifyDocument = async (req, res) => {
                 const { generateProofObject, computeProofHash } = require('../utils/proofGenerator');
 
                 const proofObject = generateProofObject({
-                    documentHash: docHash,
-                    institutionName: dbDoc[0].institution_name,
+                    documentHash: String(docHash),
+                    institutionName: String(dbDoc[0].institution_name),
                     verifiedAt: new Date().toISOString(),
-                    blockchainTx: dbDoc[0].tx_hash,
-                    blockNumber: dbDoc[0].block_number,
-                    verifierType: verifierId ? 'authenticated' : 'public'
+                    blockchainTx: String(dbDoc[0].tx_hash),
+                    blockNumber: Number(dbDoc[0].block_number),
+                    verifierType: verifierId ? 'authenticated' : 'public',
+                    expiryDate: dbDoc[0].expiry_date
                 });
 
                 const proofHash = computeProofHash(proofObject);
