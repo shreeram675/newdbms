@@ -99,6 +99,24 @@ const AdminDashboard = () => {
         }
     };
 
+    const handleReactivateInstitution = async (id, name, docCount) => {
+        const confirmed = window.confirm(
+            `Reactivate "${name}"?\n\nThis will:\n- Mark the institution as ACTIVE\n- RESTORE all ${docCount} documents from this institution\n- Documents will become VALID again`
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const res = await api.post(`/admin/institutions/${id}/reactivate`);
+            setMsg(`Institution reactivated. ${res.data.documentsRestored} documents restored.`);
+            setModalView(null); // Close modal
+            fetchData(); // Refresh data
+            setTimeout(() => setMsg(''), 5000);
+        } catch (err) {
+            setMsg('Error: ' + (err.response?.data?.message || 'Failed to reactivate'));
+        }
+    };
+
     const COLORS = ['#10b981', '#ef4444'];
     const ratioData = [
         { name: 'Valid', value: stats.ratios.valid },

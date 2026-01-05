@@ -5,6 +5,7 @@ import Signup from './pages/Signup';
 import Verifier from './pages/Verifier';
 import UploaderDashboard from './pages/UploaderDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import ProofVerification from './pages/ProofVerification';
 import { RequireAuth, RequireRole } from './components/RouteGuards';
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/verifier" />} />
           <Route path="/verifier" element={<Verifier />} />
+          <Route path="/verify-proof/:proofHash" element={<ProofVerification />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 

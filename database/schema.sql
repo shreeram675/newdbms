@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS documents (
     tx_hash CHAR(66) NULL,
     block_number BIGINT NULL,
     status ENUM('active', 'revoked') DEFAULT 'active',
+    expiry_date DATE NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (uploader_id) REFERENCES users(id),
     FOREIGN KEY (institution_id) REFERENCES institutions(id)
