@@ -18,15 +18,7 @@ router.post('/verify', upload.single('document'), controller.verifyDocument);
 router.get('/stats', protect, authorize('uploader'), controller.getUploaderStats);
 router.post('/:id/revoke', protect, authorize('uploader'), controller.revokeDocument);
 
-// NEW: Public proof verification (rate-limited, no auth required)
-router.get('/verify-proof/:proofHash', proofVerificationLimiter, proofController.verifyProof);
+// Redundant public routes removed (use /api/certificates instead)
 
-// NEW: Proof statistics (admin only)
-router.get('/proofs/stats', protect, authorize('admin'), proofController.getProofStats);
-
-// NEW: Certificate download routes (public, rate-limited)
-router.get('/certificates/download/:proofHash', certificateDownloadLimiter, certificateController.downloadPDF);
-router.get('/certificates/json/:proofHash', certificateDownloadLimiter, certificateController.getJSON);
-router.get('/certificates/preview/:proofHash', certificateController.getCertificatePreview);
 
 module.exports = router;

@@ -21,7 +21,7 @@ export default function ProofVerification() {
         try {
             setLoading(true);
             setError('');
-            const res = await api.get(`/documents/verify-proof/${proofHash}`);
+            const res = await api.get(`/certificates/verify/${proofHash}`);
             setProofData(res.data);
         } catch (err) {
             setError(err.response?.data?.message || 'Verification failed');
@@ -73,20 +73,27 @@ export default function ProofVerification() {
                     className="glass rounded-[2.5rem] shadow-2xl overflow-hidden"
                 >
                     {/* Status Banner */}
-                    <div className={`p-6 ${proofData?.valid ? 'bg-emerald-500' : 'bg-red-500'} text-white`}>
+                    <div className={`p-6 ${(!proofData?.valid || proofData?.is_expired) ? 'bg-red-500' : 'bg-emerald-500'} text-white`}>
                         <div className="flex items-center justify-center gap-3">
-                            {proofData?.valid ? (
-                                <>
-                                    <CheckCircle2 className="w-8 h-8" />
-                                    <span className="text-2xl font-black uppercase tracking-tight">
-                                        Certificate Valid
-                                    </span>
-                                </>
-                            ) : (
+                            {!proofData?.valid ? (
                                 <>
                                     <XCircle className="w-8 h-8" />
                                     <span className="text-2xl font-black uppercase tracking-tight">
                                         Invalid or Not Found
+                                    </span>
+                                </>
+                            ) : proofData?.is_expired ? (
+                                <>
+                                    <XCircle className="w-8 h-8" />
+                                    <span className="text-2xl font-black uppercase tracking-tight">
+                                        Invalid / Expired
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="w-8 h-8" />
+                                    <span className="text-2xl font-black uppercase tracking-tight">
+                                        Certificate Valid
                                     </span>
                                 </>
                             )}
@@ -147,6 +154,19 @@ export default function ProofVerification() {
                                         {proofData.proof.verifier_type}
                                     </p>
                                 </div>
+
+                                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                        Expires On
+                                    </p>
+                                    <p className={`font-medium ${proofData.is_expired ? 'text-red-600 font-bold' : 'text-slate-700'}`}>
+                                        {proofData.proof.expiry_date
+                                            ? new Date(proofData.proof.expiry_date).toLocaleDateString('en-US', {
+                                                dateStyle: 'full'
+                                            })
+                                            : 'No Expiry'}
+                                    </p>
+                                </div>
                             </div>
 
                             {/* Blockchain Information */}
@@ -202,7 +222,7 @@ export default function ProofVerification() {
                             {/* Download Options */}
                             <div className="flex gap-3">
                                 <a
-                                    href={`http://localhost:5001/api/certificates/download/${proofHash}`}
+                                    href={`http://${window.location.hostname}:5001/api/certificates/download/${proofHash}`}
                                     className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
                                     download
                                 >
@@ -211,7 +231,7 @@ export default function ProofVerification() {
                                 </a>
 
                                 <a
-                                    href={`http://localhost:5001/api/certificates/json/${proofHash}`}
+                                    href={`http://${window.location.hostname}:5001/api/certificates/json/${proofHash}`}
                                     className="px-6 py-4 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
                                     download
                                 >

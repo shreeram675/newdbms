@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-exports.protect = (req, res, next) => {
+exports.protect = async (req, res, next) => {
     let token;
 
     if (
@@ -16,7 +16,20 @@ exports.protect = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
+
+        // Fetch latest user data from DB to avoid stale JWT payload (e.g. after institution approval)
+        const db = require('../config/db');
+        const [users] = await db.query(
+            'SELECT id, name, email, role, institution_id FROM users WHERE id = ?',
+            [decoded.id]
+        );
+
+        if (users.length === 0) {
+            return res.status(401).json({ message: 'User no longer exists' });
+        }
+
+        console.log(`[AUTH] Freshly fetched institution_id for user ${users[0].id}: ${users[0].institution_id}`);
+        req.user = users[0];
         next();
     } catch (err) {
         return res.status(401).json({ message: 'Not authorized to access this route' });

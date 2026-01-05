@@ -105,14 +105,14 @@ const Verifier = () => {
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className={`mt-10 overflow-hidden rounded-[2rem] border-2 ${result.result === 'valid'
+                            className={`mt-10 overflow-hidden rounded-[2rem] border-2 ${(result.result === 'valid' && !result.isExpired)
                                 ? 'bg-emerald-50 border-emerald-100 shadow-emerald-100'
                                 : 'bg-red-50 border-red-100 shadow-red-100'
                                 } shadow-xl`}
                         >
-                            <div className={`p-6 flex items-center justify-center gap-3 text-2xl font-black uppercase tracking-tighter ${result.result === 'valid' ? 'text-emerald-700' : 'text-red-700'
+                            <div className={`p-6 flex items-center justify-center gap-3 text-2xl font-black uppercase tracking-tighter ${(result.result === 'valid' && !result.isExpired) ? 'text-emerald-700' : 'text-red-700'
                                 }`}>
-                                {result.result === 'valid' ? (
+                                {(result.result === 'valid' && !result.isExpired) ? (
                                     <>
                                         <CheckCircle2 className="w-8 h-8" />
                                         Legitimate Document
@@ -120,14 +120,14 @@ const Verifier = () => {
                                 ) : (
                                     <>
                                         <AlertCircle className="w-8 h-8" />
-                                        Tampered / Invalid
+                                        {result.isExpired ? 'Expired / Invalid' : 'Tampered / Invalid'}
                                     </>
                                 )}
                             </div>
 
                             {result.result === 'valid' && (
                                 <div className="p-8 bg-white/50 backdrop-blur-sm space-y-6 border-t border-emerald-100">
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div className="p-4 bg-white rounded-2xl shadow-sm">
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Origin Institution</p>
                                             <p className="font-bold text-slate-800">{result.institution}</p>
@@ -135,6 +135,12 @@ const Verifier = () => {
                                         <div className="p-4 bg-white rounded-2xl shadow-sm">
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Time Anchored</p>
                                             <p className="font-bold text-slate-800">{new Date(result.timestamp).toLocaleDateString()}</p>
+                                        </div>
+                                        <div className="p-4 bg-white rounded-2xl shadow-sm">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Expires On</p>
+                                            <p className={`font-bold ${result.isExpired ? 'text-red-600' : 'text-slate-800'}`}>
+                                                {result.expiryDate ? new Date(result.expiryDate).toLocaleDateString() : 'N/A'}
+                                            </p>
                                         </div>
                                     </div>
                                     <div className="p-4 bg-white rounded-2xl shadow-sm">
@@ -186,7 +192,7 @@ const Verifier = () => {
                                                 {/* Download Options */}
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <a
-                                                        href={`http://localhost:5001${result.certificate.downloadPDF}`}
+                                                        href={`http://${window.location.hostname}:5001${result.certificate.downloadPDF}`}
                                                         className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all transform hover:scale-105"
                                                         download
                                                     >
@@ -195,7 +201,7 @@ const Verifier = () => {
                                                     </a>
 
                                                     <a
-                                                        href={`http://localhost:5001${result.certificate.downloadJSON}`}
+                                                        href={`http://${window.location.hostname}:5001${result.certificate.downloadJSON}`}
                                                         className="flex items-center justify-center gap-2 px-4 py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all transform hover:scale-105"
                                                         download
                                                     >
@@ -237,15 +243,17 @@ const Verifier = () => {
                     )}
                 </AnimatePresence>
 
-                {error && (
-                    <motion.p
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="mt-6 text-red-600 text-center font-bold bg-red-50 p-4 rounded-2xl"
-                    >
-                        {error}
-                    </motion.p>
-                )}
+                {
+                    error && (
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="mt-6 text-red-600 text-center font-bold bg-red-50 p-4 rounded-2xl"
+                        >
+                            {error}
+                        </motion.p>
+                    )
+                }
 
                 <div className="mt-12 pt-8 border-t border-slate-100 text-center">
                     <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase mb-4">Secured by decentralized protocol</p>
@@ -255,8 +263,8 @@ const Verifier = () => {
                         <History className="w-6 h-6" />
                     </div>
                 </div>
-            </motion.div>
-        </div>
+            </motion.div >
+        </div >
     );
 };
 

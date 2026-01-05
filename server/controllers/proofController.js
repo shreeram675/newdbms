@@ -40,15 +40,27 @@ exports.verifyProof = async (req, res) => {
         }
 
         const storedProof = proofs[0];
-        const proofObject = typeof storedProof.proof_object === 'string'
-            ? JSON.parse(storedProof.proof_object)
-            : storedProof.proof_object;
+        let proofObject;
+        try {
+            proofObject = typeof storedProof.proof_object === 'string'
+                ? JSON.parse(storedProof.proof_object)
+                : storedProof.proof_object;
+        } catch (e) {
+            console.error('Error parsing stored proof object:', e);
+            return res.status(500).json({
+                valid: false,
+                message: 'Failed to process certificate data'
+            });
+        }
 
         // Recompute hash to verify integrity (tamper detection)
         const recomputedHash = computeProofHash(proofObject);
         const isValid = recomputedHash === proofHash;
 
         if (!isValid) {
+            console.warn(`❌ Integrity Check Failed for Hash: ${proofHash}`);
+            console.warn(`   Recomputed: ${recomputedHash}`);
+
             return res.status(400).json({
                 valid: false,
                 message: 'Proof integrity check failed - certificate data has been tampered with',
@@ -56,10 +68,23 @@ exports.verifyProof = async (req, res) => {
             });
         }
 
+        // Check for expiry
+        let isExpired = false;
+        if (proofObject.expiry_date) {
+            const expiry = new Date(proofObject.expiry_date);
+            const now = new Date();
+            if (now > expiry) {
+                isExpired = true;
+            }
+        }
+
         // Return verification metadata (without exposing full document content)
         res.json({
             valid: true,
-            message: 'Certificate is authentic and has not been tampered with',
+            is_expired: isExpired, // flag for frontend
+            message: isExpired
+                ? `Document expired on ${new Date(proofObject.expiry_date).toLocaleDateString()}`
+                : 'Certificate is authentic and has not been tampered with',
             proof: {
                 institution_name: proofObject.institution_name,
                 verification_result: proofObject.verification_result,
@@ -67,6 +92,7 @@ exports.verifyProof = async (req, res) => {
                 blockchain_tx: proofObject.blockchain_tx,
                 block_number: proofObject.block_number,
                 verifier_type: proofObject.verifier_type,
+                expiry_date: proofObject.expiry_date, // Include in response
                 system_version: proofObject.system_version
             },
             proof_hash: proofHash,

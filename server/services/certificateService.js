@@ -96,6 +96,21 @@ class CertificateService {
                         timeStyle: 'long'
                     }));
 
+                doc.moveDown(0.3);
+
+                // Expiry Date (if exists)
+                if (proofObject.expiry_date) {
+                    const expiryDate = new Date(proofObject.expiry_date);
+                    doc.font('Helvetica-Bold').text('Expires On: ', { continued: true })
+                        .font('Helvetica').fillColor('#d32f2f').text(expiryDate.toLocaleDateString('en-US', {
+                            dateStyle: 'full'
+                        }));
+                    doc.fillColor('#000');
+                } else {
+                    doc.font('Helvetica-Bold').text('Expires On: ', { continued: true })
+                        .font('Helvetica').text('N/A');
+                }
+
                 doc.moveDown(1.5);
 
                 // Blockchain Information Section

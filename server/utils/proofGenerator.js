@@ -6,6 +6,7 @@ const crypto = require('crypto');
  */
 function deterministicStringify(obj) {
     if (obj === null) return 'null';
+    if (obj instanceof Date) return JSON.stringify(obj.toISOString()); // Ensure dates are ISO strings
     if (typeof obj !== 'object') return JSON.stringify(obj);
     if (Array.isArray(obj)) {
         return '[' + obj.map(deterministicStringify).join(',') + ']';
@@ -39,18 +40,22 @@ function generateProofObject(verificationData) {
         verifiedAt,
         blockchainTx,
         blockNumber,
-        verifierType
+        verifierType,
+        expiryDate
     } = verificationData;
 
-    // Fixed order, no random values - ensures determinism
+    // Normalizing all inputs to explicit primitives to avoid type-related hash mismatches
     return {
-        document_hash: documentHash,
-        institution_name: institutionName,
+        document_hash: String(documentHash),
+        institution_name: String(institutionName),
         verification_result: 'VALID',
-        verified_at: verifiedAt,
-        blockchain_tx: blockchainTx,
-        block_number: blockNumber,
-        verifier_type: verifierType,
+        verified_at: verifiedAt instanceof Date ? verifiedAt.toISOString() : String(verifiedAt),
+        blockchain_tx: String(blockchainTx),
+        block_number: Number(blockNumber),
+        verifier_type: String(verifierType),
+        expiry_date: expiryDate ?
+            (expiryDate instanceof Date ? expiryDate.toISOString().slice(0, 10) : String(expiryDate).slice(0, 10))
+            : null,
         system_version: 'v1.0'
     };
 }
@@ -63,7 +68,10 @@ function generateProofObject(verificationData) {
  * @returns {string} - Hex-encoded SHA256 hash
  */
 function computeProofHash(proofObject) {
-    const deterministicJson = deterministicStringify(proofObject);
+    // Round-trip through JSON to ensure all types are normalized to JSON-compatible primitives
+    // (e.g., Dates become strings) and any undefined fields are stripped.
+    const normalizedObject = JSON.parse(JSON.stringify(proofObject));
+    const deterministicJson = deterministicStringify(normalizedObject);
     return crypto.createHash('sha256').update(deterministicJson).digest('hex');
 }
 
