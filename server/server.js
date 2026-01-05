@@ -43,8 +43,8 @@ process.on('uncaughtException', (err) => {
     console.error('UNCAUGHT EXCEPTION:', err);
 });
 
-const server = app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT} (accessible via LAN)`);
 });
 
 server.on('error', (e) => {
